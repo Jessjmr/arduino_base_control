@@ -6,8 +6,9 @@
 #include <std_msgs/Int32.h>
 #include <std_msgs/Float32.h>
 #include <ControlVelocidad.h>
+#include <geometry_msgs/Twist.h>
 
-float u1,u2,u3,u4, ref, Hz;
+float u1,u2,u3,u4, ref, Hz, v, w,wl,wr;
 unsigned long timeold = 0;
 
 ros::NodeHandle nh;
@@ -29,8 +30,21 @@ void valor_ref(const std_msgs::Int32& v_ref) {
   info_sub1.data = ref;
 }
 
+void cmd_vel_cb(const geometry_msgs::Twist& cmd_msg) {
+  v = cmd_msg.linear.x;
+  w = cmd_msg.angular.z;
+  float D, L;
+  D = 0.067;
+  L = 0.186;
+  
+  wl = (9.54929658551)*(1/D)*(2*v-w*L);
+  wr = (9.54929658551)*(1/D)*(2*v+w*L);
+}
+
 //Subscriber ROS
 ros::Subscriber<std_msgs::Int32> sub1("referencia_ros", valor_ref);
+
+ros::Subscriber<geometry_msgs::Twist> cmd_vel_sub("cmd_vel", cmd_vel_cb);
 
 
 //ControlVelocidad m1(1, 18, 47);
@@ -56,6 +70,7 @@ void setup() {
   nh.advertise(refsmooth);
   nh.advertise(vref);
   nh.subscribe(sub1);
+  nh.subscribe(cmd_vel_sub);
 
   if (!nh.getParam("~smoother_slope", &smoother_slope, 1)) {
     //default values
@@ -88,20 +103,21 @@ void setup() {
   m1.set_smooth_slope(smoother_slope);
   m1.set_control_gains(k_p, k_i);
   m1.set_ticks_per_rev(ticks_per_rev);
-  
+  m1.set_inverted();
   
   m2.set_smooth_slope(smoother_slope);
   m2.set_control_gains(k_p, k_i);
   m2.set_ticks_per_rev(ticks_per_rev);
+  m2.set_inverted();
     
   m3.set_smooth_slope(smoother_slope);
   m3.set_control_gains(k_p, k_i);
   m3.set_ticks_per_rev(ticks_per_rev);
   
-  
   m4.set_smooth_slope(smoother_slope);
   m4.set_control_gains(k_p, k_i);
   m4.set_ticks_per_rev(ticks_per_rev);
+  
 
   //Referencia, configurable por ROS
   ref = 0;
@@ -113,13 +129,15 @@ void loop() {
   if (millis() - timeold >= (1000 / Hz)) {
     float rpm, ref_smooth;
     timeold = millis();
+    
 
-    //Actualizar y obtener la nueva variable de control
-    //u1 = m1->update_control(ref);
-    u1 = m1.update_control(ref);
-    u2 = m2.update_control(ref);
-    u3 = m3.update_control(ref);
-    u4 = m4.update_control(ref);
+    //Motores Izquieda
+    u1 = m1.update_control(wl);
+    u2 = m2.update_control(wl);
+    
+    //Motores Derecha
+    u3 = m3.update_control(wr);
+    u4 = m4.update_control(wr);
     
     //rpm = m1->get_rpm();
     //ref_smooth = m1->get_ref_smooth();
