@@ -33,12 +33,13 @@ void valor_ref(const std_msgs::Int32& v_ref) {
 void cmd_vel_cb(const geometry_msgs::Twist& cmd_msg) {
   v = cmd_msg.linear.x;
   w = cmd_msg.angular.z;
-  float D, L;
+  float D, L, theta;
   D = 0.067;
   L = 0.186;
+  theta = 30.104;
   
-  wl = (9.54929658551)*(1/D)*(2*v-w*L);
-  wr = (9.54929658551)*(1/D)*(2*v+w*L);
+  wl = (9.54929658551)*(1/D)*(2*v-((w*L)/pow(cos(theta),2)));
+  wr = (9.54929658551)*(1/D)*(2*v+((w*L)/pow(cos(theta),2)));
 }
 
 //Subscriber ROS
